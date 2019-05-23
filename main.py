@@ -45,15 +45,27 @@ def create_folder(service, name, parents):
     return folder['id']
 
 def check_create_folder(service):
-    id=None
+    folder_id=None
     # Call the Drive v3 API
-    results = service.files().list(
-        pageSize=10, fields="nextPageToken, files(id, name)").execute()
-    items = results.get('files', [])
-    result = list(filter(lambda item: item['name'] == BLOG_FOLDER, items))
-    print(result)
+    page_token = None
+    while True:
+        response = service.files().list(
+		q="mimeType='application/vnd.google-apps.folder' and name='%s'" % BLOG_FOLDER,
+		spaces='drive',
+		fields='nextPageToken, files(id, name)',
+		pageToken=page_token).execute()
+        for file in response.get('files', []):
+            folder_id = file.get('id')
+            break
 
-    if len(result) == 0:
+        if folder_id != None:
+            break
+
+        page_token = response.get('nextPageToken', None)
+        if page_token is None:
+            break
+
+    if folder_id == None:
         fname = {
             'name': BLOG_FOLDER,
             'mimeType': 'application/vnd.google-apps.folder'
@@ -63,10 +75,8 @@ def check_create_folder(service):
         print ('Folder ID: %s' % folder.get('id'))
         id = folder.get('id')
     else:
-        folder = result[0]
-        print ('Already Exist Folder ID: %s' % folder.get('id'))
-        id = folder.get('id')
-    return id
+        print ('Already Exist Folder ID: %s' % folder_id)
+    return folder_id
 
 
 def upload_img(service, folder_id, img):
@@ -111,7 +121,6 @@ def main(fname):
 
     src_file.close()
     dest_file.close()
-
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
